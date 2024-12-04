@@ -322,8 +322,8 @@ if torch.cuda.is_available():
 enc = tiktoken.get_encoding("gpt2")
 
 total_batch_size = 524288 # 2**19, ~0.5M, in number of tokens
-B = 4 # micro batch size
-T = 512 # sequence length
+B = 2 # micro batch size
+T = 256 # sequence length
 assert total_batch_size % (B * T * ddp_world_size) == 0, "make sure total_batch_size is divisible by B * T * ddp_world_size"
 grad_accum_steps = total_batch_size // (B * T * ddp_world_size)
 if master_process:
@@ -513,9 +513,16 @@ for step in range(max_steps):
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps * ddp_world_size
     tokens_per_sec = tokens_processed / dt
     if master_process:
-        print(f"step {step:5d} | loss: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
+        print(f"step {step:5d} | loss: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt:.2f}s | tok/sec: {tokens_per_sec:.2f}")
         with open(log_file, "a") as f:
             f.write(f"{step} train {loss_accum.item():.6f}\n")
 
 if ddp:
     destroy_process_group()
+
+# At my current hardware of:
+# _CudaDeviceProperties(name='NVIDIA GeForce RTX 3070 Ti Laptop GPU', major=8, minor=6, total_memory=7870MB, multi_processor_count=46, uuid=aa90bfc5-145e-1a09-01eb-3841155f185d, L2_cache_size=4MB)
+# it would take me approximately 3 years 4 months to completely train GPT-2 😭😭😭
+
+# 19073 * 90 / 60 / 24 / 30 / 12
+# 3.311284722222222 💔💔💔
